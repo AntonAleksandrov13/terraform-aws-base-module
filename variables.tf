@@ -19,6 +19,11 @@ variable "base_user_pgp_key" {
   default = "keybase:some_person_that_exists"
 }
 
+variable "base_user_additional_policies_arn"{
+    type=list(string)
+    default = []
+}
+
 variable "state_bucket_name"{
     type = string
     default="terraform-state-eu-central-1"
