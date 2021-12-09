@@ -26,7 +26,7 @@ variable "base_user_additional_policies_arn"{
 
 variable "state_bucket_name"{
     type = string
-    default="terraform-state-eu-central-1"
+    default="my-very-unique-terraform-state-eu-central-1"
 }
 
 variable "s3_state_key_path"{

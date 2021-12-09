@@ -8,6 +8,6 @@ terraform {
   }
 }
 
-
-
-
+output "api_url" {
+    value = "google.com"
+}

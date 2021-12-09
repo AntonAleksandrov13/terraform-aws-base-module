@@ -53,8 +53,8 @@ resource "aws_iam_user_policy" "dynamodb_access" {
 EOF
 }
 
-resource "aws_iam_user_policy_attachment" "base_user_additional_policies" {
-  count      = length(var.base_user_additional_policies_arn)
-  role       = aws_iam_role.aws_iam_user.base_user.id
-  policy_arn = var.base_user_additional_policies_arn[count.index]
-}
+# resource "aws_iam_user_policy_attachment" "base_user_additional_policies" {
+#   count      = length(var.base_user_additional_policies_arn)
+#   role       = aws_iam_role.aws_iam_user.base_user.id
+#   policy_arn = var.base_user_additional_policies_arn[count.index]
+# }
