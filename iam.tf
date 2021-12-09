@@ -30,3 +30,25 @@ resource "aws_iam_user_policy" "s3_access" {
 }
 EOF
 }
+
+resource "aws_iam_user_policy" "dynamodb_access" {
+  name = "DynamoDBAccessTerraform"
+  user = aws_iam_user.base_user.name
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem"
+      ],
+      "Resource": "arn:aws:dynamodb:*:*:table/${var.terraform_lock_table_name}"
+    }
+  ]
+}
+EOF
+}
