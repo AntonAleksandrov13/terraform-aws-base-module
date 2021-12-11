@@ -1,40 +1,45 @@
 
 variable "region" {
-  type = string
+  type    = string
   default = "eu-central-1"
 }
 
+variable "create_base_user" {
+  type = bool
+  default = false
+}
+
 variable "base_user_name" {
-  type=string
+  type    = string
   default = "terraform"
 }
 
 variable "base_user_path" {
-  type=string
+  type    = string
   default = "/"
 }
 
 variable "base_user_pgp_key" {
-  type=string
-  default = "keybase:some_person_that_exists"
+  type     = string
+  default = "place_holder"
 }
 
-variable "base_user_additional_policies_arn"{
-    type=list(string)
-    default = []
+variable "base_user_additional_policies_arn" {
+  type    = list(string)
+  default = []
 }
 
-variable "state_bucket_name"{
-    type = string
-    default="my-very-unique-terraform-state-eu-central-1"
+variable "state_bucket_name" {
+  type    = string
+  default = "my-very-unique-terraform-state-eu-central-1"
 }
 
-variable "s3_state_key_path"{
-    type = string
-    default = "/"
+variable "s3_state_key_path" {
+  type    = string
+  default = "/"
 }
 
-variable "terraform_lock_table_name"{
-    type = string
-    default = "terraform-state-lock"
+variable "terraform_lock_table_name" {
+  type    = string
+  default = "terraform-state-lock"
 }
