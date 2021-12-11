@@ -7,7 +7,3 @@ terraform {
     aws        = ">= 3.22.0"
   }
 }
-
-output "api_url" {
-    value = "google.com"
-}
