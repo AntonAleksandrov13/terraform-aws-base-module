@@ -25,13 +25,18 @@ variable "base_user_pgp_key" {
 }
 
 ## not used right now
-## todo: enable this for user and roles
+## TODO: enable this for user and roles
 variable "base_user_additional_policies_arn" {
   type    = list(string)
   default = []
 }
 ### AWS IAM Role section
 variable "create_base_role" {
+  type = bool
+  default = true
+}
+
+variable "allow_user_assume" {
   type = bool
   default = true
 }
