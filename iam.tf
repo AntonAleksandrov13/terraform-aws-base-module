@@ -47,9 +47,9 @@ data "aws_iam_policy_document" "user_trust_relationship" {
     ]
     principals {
       type        = "AWS"
-      # NOTE: that here the module does use a dependency on aws_iam_user.base_user[0].name resource
-      # this is intentional. sincer sometimes you might want to allow already existing user to be allowed to use this role
-      # so, you can still use -var `base_user_name=already_existing_user`.
+      # NOTE: that here there's no dependency on aws_iam_user.base_user[0] resource
+      # this is intentional. since sometimes already existing users might need to use this role
+      # this way you can still use -var `base_user_name=already_existing_user` 
       # this functionality comes with the price: if the user does not exists "Invalid principal in policy" error will be returned
       identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${var.base_user_name}"]
     }
