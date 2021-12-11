@@ -3,7 +3,7 @@ variable "region" {
   type    = string
   default = "eu-central-1"
 }
-
+### AWS IAM User section
 variable "create_base_user" {
   type = bool
   default = false
@@ -24,11 +24,17 @@ variable "base_user_pgp_key" {
   default = "place_holder"
 }
 
+## not used right now
+## todo: enable this for user and roles
 variable "base_user_additional_policies_arn" {
   type    = list(string)
   default = []
 }
-
+### AWS IAM Role section
+variable "create_base_role" {
+  type = bool
+  default = true
+}
 variable "state_bucket_name" {
   type    = string
   default = "my-very-unique-terraform-state-eu-central-1"
