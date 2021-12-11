@@ -25,3 +25,11 @@ output "ses_smtp_password_aws_secret_access_key" {
   description = "Secret access key converted into an SES SMTP password by applying AWS's documented Sigv4 conversion algorithm."
   sensitive   = true
 }
+
+output "role_name" {
+  value = var.create_base_role == true ? aws_iam_role.base_role[0].name : null
+}
+
+output "role_arn" {
+  value = var.create_base_role == true ? aws_iam_role.base_role[0].arn : null
+}
