@@ -38,7 +38,7 @@ variable "create_base_role" {
 
 variable "allow_user_assume" {
   type = bool
-  default = true
+  default = false
 }
 
 variable "base_role_name" {

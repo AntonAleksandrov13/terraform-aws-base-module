@@ -46,15 +46,40 @@ data "aws_iam_policy_document" "user_trust_relationship" {
       "sts:AssumeRole",
     ]
     principals {
-      type        = "AWS"
+      type = "AWS"
       # NOTE: that here there's no dependency on aws_iam_user.base_user[0] resource
       # this is intentional. since sometimes already existing users might need to use this role
-      # this way you can still use -var `base_user_name=already_existing_user` 
+      # this way you can still use -var `base_user_name=already_existing_user`
       # this functionality comes with the price: if the user does not exists "Invalid principal in policy" error will be returned
       identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${var.base_user_name}"]
     }
   }
 }
+### AWS IAM Policies attachment section
+resource "aws_iam_role_policy_attachment" "role_s3_access" {
+  count      = local.create_role_count
+  role       = aws_iam_role.base_role[count.index].name
+  policy_arn = aws_iam_policy.s3_access.arn
+}
+
+resource "aws_iam_role_policy_attachment" "role_dynamodb_access" {
+  count      = local.create_role_count
+  role       = aws_iam_role.base_role[count.index].name
+  policy_arn = aws_iam_policy.dynamodb_access.arn
+}
+
+resource "aws_iam_user_policy_attachment" "user_s3_access" {
+  count      = local.create_user_count
+  user       = aws_iam_user.base_user[count.index].name
+  policy_arn = aws_iam_policy.s3_access.arn
+}
+
+resource "aws_iam_user_policy_attachment" "user_dynamodb_access" {
+  count      = local.create_user_count
+  user       = aws_iam_user.base_user[count.index].name
+  policy_arn = aws_iam_policy.dynamodb_access.arn
+}
+
 
 ### AWS IAM Policies section
 resource "aws_iam_policy" "s3_access" {
