@@ -35,6 +35,13 @@ variable "create_base_role" {
   type = bool
   default = true
 }
+
+variable "base_role_name" {
+  type    = string
+  default = "terraform"
+}
+
+## AWS DynamoDB and S3 section
 variable "state_bucket_name" {
   type    = string
   default = "my-very-unique-terraform-state-eu-central-1"

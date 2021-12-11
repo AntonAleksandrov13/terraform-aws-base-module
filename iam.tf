@@ -16,6 +16,25 @@ resource "aws_iam_access_key" "base_user" {
   pgp_key = var.base_user_pgp_key
 }
 
+### AWS IAM Role section
+resource "aws_iam_role" "base_role" {
+  name  = var.base_role_name
+  count = local.role_count
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = ""
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
 ### AWS IAM Policies section
 resource "aws_iam_policy" "s3_access" {
   name = "S3AccessTerraform"
@@ -40,7 +59,7 @@ EOF
 }
 
 resource "aws_iam_policy" "dynamodb_access" {
-  name = "DynamoDBAccessTerraform"
+  name   = "DynamoDBAccessTerraform"
   policy = <<EOF
 {
   "Version": "2012-10-17",
