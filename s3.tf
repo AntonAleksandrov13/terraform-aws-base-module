@@ -1,8 +1,12 @@
-resource "aws_s3_bucket" "state-bucket" {
-  bucket = var.state_bucket_name
+locals {
+  bucket_name = var.generate_bucket_name ? "terraform-${data.aws_caller_identity.current.account_id}" : var.state_bucket_name_override
+}
+
+resource "aws_s3_bucket" "state_storage" {
+  bucket = local.bucket_name
   acl    = "private"
 
   tags = {
-    Name        = var.state_bucket_name
+    Name = local.bucket_name
   }
 }

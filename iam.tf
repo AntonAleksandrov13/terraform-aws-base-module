@@ -92,12 +92,12 @@ resource "aws_iam_policy" "s3_access" {
     {
       "Effect": "Allow",
       "Action": "s3:ListBucket",
-      "Resource": "arn:aws:s3:::${var.state_bucket_name}"
+      "Resource": "arn:aws:s3:::${aws_s3_bucket.state_storage.id}"
     },
     {
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-      "Resource": "arn:aws:s3:::${var.state_bucket_name}${var.s3_state_key_path}"
+      "Resource": "arn:aws:s3:::${aws_s3_bucket.state_storage.id}${var.s3_state_key_path}"
     }
   ]
 }
