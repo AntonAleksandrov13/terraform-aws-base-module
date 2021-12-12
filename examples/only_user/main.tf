@@ -2,6 +2,10 @@ variable "region" {
   default = "eu-central-1"
 }
 
+variable "base_user_pgp_key" {
+  default = "mDMEYbOgExYJKwYBBAHaRw8BAQdAzED..."
+}
+
 provider "aws" {
   region = var.region
 }
@@ -15,5 +19,5 @@ terraform {
 module "base-module" {
   source            = "../.."
   create_base_user  = true
-  base_user_pgp_key = "ACTUAL_BASE64_PGP_KEY_SHOULD_BE_HERE"
+  base_user_pgp_key = var.base_user_pgp_key
 }
