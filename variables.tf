@@ -1,8 +1,3 @@
-
-variable "region" {
-  type    = string
-  default = "eu-central-1"
-}
 ### AWS IAM User section
 variable "create_base_user" {
   type = bool
@@ -33,7 +28,7 @@ variable "base_user_additional_policies_arn" {
 ### AWS IAM Role section
 variable "create_base_role" {
   type = bool
-  default = true
+  default = false
 }
 
 variable "allow_user_assume" {
