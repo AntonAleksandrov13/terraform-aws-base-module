@@ -20,3 +20,7 @@ module "base_module" {
 output "role_name" {
   value = module.base_module.role_name
 }
+
+output "role_arn" {
+  value = module.base_module.role_arn
+}
