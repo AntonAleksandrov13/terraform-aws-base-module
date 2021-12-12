@@ -47,7 +47,11 @@ variable "base_role_name" {
 }
 
 ## AWS DynamoDB and S3 section
-variable "state_bucket_name" {
+variable "generate_bucket_name" {
+  type = bool
+  default = true
+}
+variable "state_bucket_name_override" {
   type    = string
   default = "my-very-unique-terraform-state-eu-central-1"
 }
@@ -56,8 +60,12 @@ variable "s3_state_key_path" {
   type    = string
   default = "/"
 }
+variable "generate_lock_table_name" {
+  type = bool
+  default = true
+}
 
-variable "terraform_lock_table_name" {
+variable "lock_table_name_override" {
   type    = string
   default = "terraform-state-lock"
 }
