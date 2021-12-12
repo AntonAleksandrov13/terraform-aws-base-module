@@ -12,7 +12,11 @@ terraform {
   }
 }
 
-module "base-module" {
+module "base_module" {
   source            = "../.."
   create_base_role  = true
+}
+
+output "role_name" {
+  value = module.base_module.role_name
 }
