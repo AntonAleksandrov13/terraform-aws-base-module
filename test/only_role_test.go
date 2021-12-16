@@ -1,18 +1,38 @@
 package test
 
 import (
-	"testing"
-
+	"fmt"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
+var testPath = "../examples/only_role"
+
 func TestOnlyRoleCreation(t *testing.T) {
-	// Construct the terraform options with default retryable errors to handle the most common
-	// retryable errors in terraform testing.
+	svc := sts.New(session.Must(session.NewSession()))
+	input := &sts.GetCallerIdentityInput{}
+
+	result, err := svc.GetCallerIdentity(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			default:
+				t.Errorf(aerr.Error())
+			}
+		} else {
+			t.Errorf(err.Error())
+		}
+	}
+	callerAccount := *result.Account
+	//Construct the terraform options with default retryable errors to handle the most common
+	//retryable errors in terraform testing.
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		// Set the path to the Terraform code that will be tested.
-		TerraformDir: "../examples/only_role",
+		TerraformDir: testPath,
 	})
 
 	// Clean up resources with "terraform destroy" at the end of the test.
@@ -26,5 +46,5 @@ func TestOnlyRoleCreation(t *testing.T) {
 	assert.Equal(t, "terraform", roleNameReturned)
 
 	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
-	assert.Equal(t, "terraform", roleARNReturned)
+	assert.Equal(t, fmt.Sprintf("arn:aws:iam::%v:role/terraform", callerAccount), roleARNReturned)
 }
