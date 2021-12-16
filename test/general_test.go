@@ -44,6 +44,7 @@ func TestExistingUserCanAssumeRole(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../examples/existing_user_can_assume_role",
 	})
@@ -60,6 +61,11 @@ func TestExistingUserCanAssumeRole(t *testing.T) {
 	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
 	assert.Equal(t, fmt.Sprintf("arn:aws:iam::%v:role/terraform", callerAccount), roleARNReturned)
 
+	userCanAssumeRole, err := CanCurrentUserAssumeRole(sess, roleARNReturned)
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, true, userCanAssumeRole)
 }
 
 func GetAWSAccountNumber(session client.ConfigProvider) (string, error) {
@@ -73,4 +79,19 @@ func GetAWSAccountNumber(session client.ConfigProvider) (string, error) {
 		}
 	}
 	return *result.Account, nil
+}
+
+func CanCurrentUserAssumeRole(session client.ConfigProvider, role string) (bool, error) {
+	svc := sts.New(session)
+	sessionName := "test_session"
+	_, err := svc.AssumeRole(&sts.AssumeRoleInput{
+		RoleArn:         &role,
+		RoleSessionName: &sessionName,
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
