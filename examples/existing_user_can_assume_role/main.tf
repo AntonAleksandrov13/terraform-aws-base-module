@@ -28,7 +28,7 @@ module "base_module" {
   source            = "../.."
   create_base_role  = true
   allow_user_assume = true
-  base_user_name =  local.current_user
+  base_user_name    = local.current_user
 }
 
 output "role_name" {
@@ -37,4 +37,8 @@ output "role_name" {
 
 output "role_arn" {
   value = module.base_module.role_arn
+}
+
+output "s3_bucket_name" {
+  value = module.base_module.s3_bucket_name
 }
