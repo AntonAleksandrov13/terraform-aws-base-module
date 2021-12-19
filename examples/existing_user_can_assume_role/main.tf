@@ -42,3 +42,7 @@ output "role_arn" {
 output "s3_bucket_name" {
   value = module.base_module.s3_bucket_name
 }
+
+output "lock_table_name" {
+  value = module.base_module.lock_table_name
+}
