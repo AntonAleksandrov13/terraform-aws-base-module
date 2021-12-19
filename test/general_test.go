@@ -141,8 +141,7 @@ func deleteLockTableItem(sess *session.Session, lockID string, tableName string)
 }
 
 func TestOnlyRoleCreation(t *testing.T) {
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("AWS_REGION"))}))
+	sess := session.Must(session.NewSession())
 	callerAccount, err := getAWSAccountNumber(sess)
 	if err != nil {
 		require.NoError(t, err)
@@ -169,8 +168,7 @@ func TestOnlyRoleCreation(t *testing.T) {
 }
 
 func TestExistingUserCanAssumeRole(t *testing.T) {
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("AWS_REGION"))}))
+	sess := session.Must(session.NewSession())
 	callerAccount, err := getAWSAccountNumber(sess)
 	if err != nil {
 		require.NoError(t, err)
@@ -239,8 +237,7 @@ func TestExistingUserReadWriteS3Bucket(t *testing.T) {
 }
 
 func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("AWS_REGION"))}))
+	sess := session.Must(session.NewSession())
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../examples/existing_user_can_assume_role",
 	})
@@ -258,7 +255,6 @@ func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
 	// run role assume and create a new session
 	sess = session.Must(session.NewSession(&aws.Config{
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
-		Region:      aws.String(os.Getenv("AWS_REGION")),
 	}))
 
 	id := "some_lock_id"
