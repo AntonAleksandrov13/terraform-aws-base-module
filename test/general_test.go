@@ -225,7 +225,7 @@ func TestExistingUserReadWriteS3Bucket(t *testing.T) {
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
 	}))
 	// dirty trick to bypass s3 reachability issue
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	err := uploadFileToS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
 	// can the assumed role write to S3?
 	require.NoError(t, err)
@@ -251,7 +251,7 @@ func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
 	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
 	tableNameReturned := terraform.Output(t, terraformOptions, "lock_table_name")
 	// dirty trick to bypass dynamodb reachability issue
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	// run role assume and create a new session
 	sess = session.Must(session.NewSession(&aws.Config{
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
