@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/gruntwork-io/terratest/modules/terraform"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 )
@@ -168,7 +168,7 @@ func TestOnlyRoleCreation(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	callerAccount, err := getAWSAccountNumber(sess)
 	if err != nil {
-		t.Error(err)
+		require.NoError(t, err)
 	}
 	//Construct the terraform options with default retryable errors to handle the most common
 	//retryable errors in terraform testing.
@@ -185,17 +185,17 @@ func TestOnlyRoleCreation(t *testing.T) {
 
 	// Run `terraform roleNameReturned` to get the values of roleNameReturned variables and check they have the expected values.
 	roleNameReturned := terraform.Output(t, terraformOptions, "role_name")
-	assert.Equal(t, "terraform", roleNameReturned)
+	require.Equal(t, "terraform", roleNameReturned)
 
 	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
-	assert.Equal(t, fmt.Sprintf("arn:aws:iam::%v:role/terraform", callerAccount), roleARNReturned)
+	require.Equal(t, fmt.Sprintf("arn:aws:iam::%v:role/terraform", callerAccount), roleARNReturned)
 }
 
 func TestExistingUserCanAssumeRole(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	callerAccount, err := getAWSAccountNumber(sess)
 	if err != nil {
-		t.Error(err)
+		require.NoError(t, err)
 	}
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
@@ -210,15 +210,15 @@ func TestExistingUserCanAssumeRole(t *testing.T) {
 
 	// is the role name output matching the expected name?
 	roleNameReturned := terraform.Output(t, terraformOptions, "role_name")
-	assert.Equal(t, "terraform", roleNameReturned)
+	require.Equal(t, "terraform", roleNameReturned)
 	// is the role arn output matching the expected arn?
 	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
-	assert.Equal(t, fmt.Sprintf("arn:aws:iam::%v:role/terraform", callerAccount), roleARNReturned)
+	require.Equal(t, fmt.Sprintf("arn:aws:iam::%v:role/terraform", callerAccount), roleARNReturned)
 
 	// run role assume using current user credentials
 	assumeRole, err := currentUserAssumeRole(sess, roleARNReturned)
 	if err != nil {
-		t.Error(err)
+		require.NoError(t, err)
 	}
 	userCanAssumeRole := false
 	// check if this property is present.
@@ -227,7 +227,7 @@ func TestExistingUserCanAssumeRole(t *testing.T) {
 		userCanAssumeRole = true
 	}
 	// can current user assume this role?
-	assert.Equal(t, true, userCanAssumeRole)
+	require.Equal(t, true, userCanAssumeRole)
 }
 
 func TestExistingUserReadWriteS3Bucket(t *testing.T) {
@@ -250,11 +250,11 @@ func TestExistingUserReadWriteS3Bucket(t *testing.T) {
 	}))
 	err := uploadFileToS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
 	// can the assumed role write to S3?
-	assert.Equal(t, nil, err)
+	require.NoError(t, err)
 
 	// can the assumed role delete from S3?
 	err = deleteFileFromS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
-	assert.Equal(t, nil, err)
+	require.NoError(t, err)
 
 }
 
@@ -282,13 +282,13 @@ func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
 	value := "some_lock_value"
 	// can the assumed role write to the dynamodb table?
 	err := addLockTableItem(sess, id, value, tableNameReturned)
-	assert.Equal(t, nil, err)
+	require.NoError(t, err)
 
 	// can the assumed role update data in the dynamodb table?
 	err = updateLockTableItem(sess, id, value+"_new", tableNameReturned)
-	assert.Equal(t, nil, err)
+	require.NoError(t, err)
 
 	// can the assumed role delete data from the dynamodb table?
 	err = deleteLockTableItem(sess, id, tableNameReturned)
-	assert.Equal(t, nil, err)
+	require.NoError(t, err)
 }
