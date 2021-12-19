@@ -97,7 +97,7 @@ func deleteFileFromS3Bucket(sess *session.Session, filename string, bucketName s
 	return nil
 }
 
-func addTableItem(sess *session.Session, lockID string, lockValue string, tableName string) error {
+func addLockTableItem(sess *session.Session, lockID string, lockValue string, tableName string) error {
 	svc := dynamodb.New(sess)
 	item := Item{
 		LockID:    lockID,
@@ -113,6 +113,50 @@ func addTableItem(sess *session.Session, lockID string, lockValue string, tableN
 		Item:      av,
 		TableName: &tableName,
 	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func deleteLockTableItem(sess *session.Session, lockID string, tableName string) error {
+	svc := dynamodb.New(sess)
+	input := &dynamodb.DeleteItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"LockID": {
+				S: &lockID,
+			},
+		},
+		TableName: &tableName,
+	}
+
+	_, err := svc.DeleteItem(input)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func updateLockTableItem(sess *session.Session, lockID string, lockValue string, tableName string) error {
+	svc := dynamodb.New(sess)
+	input := &dynamodb.UpdateItemInput{
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":v": {
+				S: &lockValue,
+			},
+		},
+		Key: map[string]*dynamodb.AttributeValue{
+			"LockID": {
+				S: &lockID,
+			},
+		},
+		TableName:        &tableName,
+		UpdateExpression: aws.String("set LockValue = :v"),
+	}
+
+	_, err := svc.UpdateItem(input)
 	if err != nil {
 		return err
 	}
@@ -214,7 +258,7 @@ func TestExistingUserReadWriteS3Bucket(t *testing.T) {
 
 }
 
-func TestExistingUserReadWriteDynamoDB(t *testing.T) {
+func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../examples/existing_user_can_assume_role",
@@ -234,6 +278,14 @@ func TestExistingUserReadWriteDynamoDB(t *testing.T) {
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
 	}))
 
-	err := addTableItem(sess, "some_lock_id", "some_lock_value", tableNameReturned)
+	id := "some_lock_id"
+	value := "some_lock_value"
+	err := addLockTableItem(sess, id, value, tableNameReturned)
+	assert.Equal(t, nil, err)
+
+	err = updateLockTableItem(sess, id, value+"_new", tableNameReturned)
+	assert.Equal(t, nil, err)
+
+	err = deleteLockTableItem(sess, id, tableNameReturned)
 	assert.Equal(t, nil, err)
 }
