@@ -95,6 +95,34 @@ func TestExistingUserCanAssumeRole(t *testing.T) {
 
 }
 
+func TestExistingUserReadWriteS3Bucker(t *testing.T) {
+	sess := session.Must(session.NewSession())
+	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
+		TerraformDir: "../examples/existing_user_can_assume_role",
+	})
+
+	// Clean up resources with "terraform destroy" at the end of the test.
+	defer terraform.Destroy(t, terraformOptions)
+
+	// Run "terraform init" and "terraform apply". Fail the test if there are any errors.
+	terraform.InitAndApply(t, terraformOptions)
+
+	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
+
+	// run another role assume operation and create a new session
+	sess = session.Must(session.NewSession(&aws.Config{
+		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
+	}))
+	err := uploadFileToS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
+	// can the assumed role write to S3?
+	assert.Equal(t, nil, err)
+
+	// can the assumed role delete from S3?
+	err = deleteFileFromS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
+	assert.Equal(t, nil, err)
+
+}
+
 func getAWSAccountNumber(session client.ConfigProvider) (string, error) {
 	svc := sts.New(session)
 	input := &sts.GetCallerIdentityInput{}
