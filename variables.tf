@@ -53,7 +53,7 @@ variable "state_bucket_name_override" {
 
 variable "s3_state_key_path" {
   type    = string
-  default = "/"
+  default = "/*"
 }
 variable "generate_lock_table_name" {
   type = bool

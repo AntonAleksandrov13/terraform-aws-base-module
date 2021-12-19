@@ -10,3 +10,10 @@ resource "aws_s3_bucket" "state_storage" {
     Name = local.bucket_name
   }
 }
+
+resource "aws_s3_bucket_public_access_block" "state_storage" {
+  bucket = aws_s3_bucket.state_storage.id
+
+  block_public_acls   = true
+  block_public_policy = true
+}
