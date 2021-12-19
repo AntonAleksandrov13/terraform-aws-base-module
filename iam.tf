@@ -117,7 +117,7 @@ resource "aws_iam_policy" "dynamodb_access" {
         "dynamodb:PutItem",
         "dynamodb:DeleteItem"
       ],
-      "Resource": "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/${aws_dynamodb_table.terraform_lock.id}"
+      "Resource": "${aws_dynamodb_table.terraform_lock.arn}"
     }
   ]
 }
