@@ -1,7 +1,6 @@
 package test
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -9,10 +8,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	"github.com/stretchr/testify/assert"
-	"net/http"
 	"os"
 	"testing"
 )
@@ -61,7 +60,7 @@ func TestExistingUserCanAssumeRole(t *testing.T) {
 	// Run "terraform init" and "terraform apply". Fail the test if there are any errors.
 	terraform.InitAndApply(t, terraformOptions)
 
-	// is role name output matching the expected name?
+	// is the role name output matching the expected name?
 	roleNameReturned := terraform.Output(t, terraformOptions, "role_name")
 	assert.Equal(t, "terraform", roleNameReturned)
 	// is the role arn output matching the expected arn?
@@ -82,11 +81,17 @@ func TestExistingUserCanAssumeRole(t *testing.T) {
 	// can current user assume this role?
 	assert.Equal(t, true, userCanAssumeRole)
 
+	// run another role assume operation and create a new session
 	sess = session.Must(session.NewSession(&aws.Config{
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
 	}))
-	uploadFile(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
-	// can we write to S3?
+	err = uploadFileToS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
+	// can the assumed role write to S3?
+	assert.Equal(t, nil, err)
+
+	// can the assumed role delete from S3?
+	err = deleteFileFromS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
+	assert.Equal(t, nil, err)
 
 }
 
@@ -118,27 +123,49 @@ func currentUserAssumeRole(session client.ConfigProvider, role string) (*sts.Ass
 	return result, nil
 }
 
-func uploadFile(session *session.Session, uploadFile string, bucketName string) error {
-	upFile, err := os.Open(uploadFile)
+func uploadFileToS3Bucket(session *session.Session, filename string, bucketName string) error {
+	file, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
-	defer upFile.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
 
-	upFileInfo, _ := upFile.Stat()
-	var fileSize int64 = upFileInfo.Size()
-	fileBuffer := make([]byte, fileSize)
-	upFile.Read(fileBuffer)
-
-	_, err = s3.New(session).PutObject(&s3.PutObjectInput{
-		Bucket:             aws.String(bucketName),
-		Key:                aws.String("/"),
-		ACL:                aws.String("private"),
-		Body:               bytes.NewReader(fileBuffer),
-		ContentLength:      aws.Int64(fileSize),
-		ContentType:        aws.String(http.DetectContentType(fileBuffer)),
-		ContentDisposition: aws.String("attachment"),
+		}
+	}(file)
+	uploader := s3manager.NewUploader(session)
+	_, err = uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(filename),
+		Body:   file,
 	})
-	fmt.Println(err)
-	return err
+	if err != nil {
+		// Print the error and exit.
+		return err
+	}
+	fmt.Printf("Successfully uploaded %q to %q\n", filename, bucketName)
+	return nil
+}
+
+func deleteFileFromS3Bucket(sess *session.Session, filename string, bucketName string) error {
+	svc := s3.New(sess)
+
+	_, err := svc.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: &bucketName,
+		Key:    &filename,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = svc.WaitUntilObjectNotExists(&s3.HeadObjectInput{
+		Bucket: &bucketName,
+		Key:    &filename,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
