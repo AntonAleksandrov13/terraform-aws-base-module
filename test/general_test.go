@@ -80,19 +80,6 @@ func TestExistingUserCanAssumeRole(t *testing.T) {
 	}
 	// can current user assume this role?
 	assert.Equal(t, true, userCanAssumeRole)
-
-	// run another role assume operation and create a new session
-	sess = session.Must(session.NewSession(&aws.Config{
-		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
-	}))
-	err = uploadFileToS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
-	// can the assumed role write to S3?
-	assert.Equal(t, nil, err)
-
-	// can the assumed role delete from S3?
-	err = deleteFileFromS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
-	assert.Equal(t, nil, err)
-
 }
 
 func TestExistingUserReadWriteS3Bucket(t *testing.T) {
