@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -15,6 +17,108 @@ import (
 	"os"
 	"testing"
 )
+
+type Item struct {
+	LockID    string
+	LockValue string
+}
+
+func getAWSAccountNumber(session client.ConfigProvider) (string, error) {
+	svc := sts.New(session)
+	input := &sts.GetCallerIdentityInput{}
+
+	result, err := svc.GetCallerIdentity(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			return "", aerr
+		}
+	}
+	return *result.Account, nil
+}
+
+func currentUserAssumeRole(session client.ConfigProvider, role string) (*sts.AssumeRoleOutput, error) {
+	svc := sts.New(session)
+	sessionName := "test_session"
+	result, err := svc.AssumeRole(&sts.AssumeRoleInput{
+		RoleArn:         &role,
+		RoleSessionName: &sessionName,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func uploadFileToS3Bucket(session *session.Session, filename string, bucketName string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			fmt.Println("Could not close file properly in defer statement")
+		}
+	}(file)
+	uploader := s3manager.NewUploader(session)
+	_, err = uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(filename),
+		Body:   file,
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Successfully uploaded %q to %q\n", filename, bucketName)
+	return nil
+}
+
+func deleteFileFromS3Bucket(sess *session.Session, filename string, bucketName string) error {
+	svc := s3.New(sess)
+
+	_, err := svc.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: &bucketName,
+		Key:    &filename,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = svc.WaitUntilObjectNotExists(&s3.HeadObjectInput{
+		Bucket: &bucketName,
+		Key:    &filename,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func addTableItem(sess *session.Session, lockID string, lockValue string, tableName string) error {
+	svc := dynamodb.New(sess)
+	item := Item{
+		LockID:    lockID,
+		LockValue: lockValue,
+	}
+
+	av, err := dynamodbattribute.MarshalMap(item)
+	if err != nil {
+		return err
+	}
+
+	_, err = svc.PutItem(&dynamodb.PutItemInput{
+		Item:      av,
+		TableName: &tableName,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func TestOnlyRoleCreation(t *testing.T) {
 	sess := session.Must(session.NewSession())
@@ -110,76 +214,26 @@ func TestExistingUserReadWriteS3Bucket(t *testing.T) {
 
 }
 
-func getAWSAccountNumber(session client.ConfigProvider) (string, error) {
-	svc := sts.New(session)
-	input := &sts.GetCallerIdentityInput{}
-
-	result, err := svc.GetCallerIdentity(input)
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			return "", aerr
-		}
-	}
-	return *result.Account, nil
-}
-
-func currentUserAssumeRole(session client.ConfigProvider, role string) (*sts.AssumeRoleOutput, error) {
-	svc := sts.New(session)
-	sessionName := "test_session"
-	result, err := svc.AssumeRole(&sts.AssumeRoleInput{
-		RoleArn:         &role,
-		RoleSessionName: &sessionName,
+func TestExistingUserReadWriteDynamoDB(t *testing.T) {
+	sess := session.Must(session.NewSession())
+	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
+		TerraformDir: "../examples/existing_user_can_assume_role",
 	})
 
-	if err != nil {
-		return nil, err
-	}
+	// Clean up resources with "terraform destroy" at the end of the test.
+	defer terraform.Destroy(t, terraformOptions)
 
-	return result, nil
-}
+	// Run "terraform init" and "terraform apply". Fail the test if there are any errors.
+	terraform.InitAndApply(t, terraformOptions)
 
-func uploadFileToS3Bucket(session *session.Session, filename string, bucketName string) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			fmt.Println("Could not close file properly in defer statement")
-		}
-	}(file)
-	uploader := s3manager.NewUploader(session)
-	_, err = uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(filename),
-		Body:   file,
-	})
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Successfully uploaded %q to %q\n", filename, bucketName)
-	return nil
-}
+	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
+	tableNameReturned := terraform.Output(t, terraformOptions, "lock_table_name")
 
-func deleteFileFromS3Bucket(sess *session.Session, filename string, bucketName string) error {
-	svc := s3.New(sess)
+	// run role assume and create a new session
+	sess = session.Must(session.NewSession(&aws.Config{
+		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
+	}))
 
-	_, err := svc.DeleteObject(&s3.DeleteObjectInput{
-		Bucket: &bucketName,
-		Key:    &filename,
-	})
-	if err != nil {
-		return err
-	}
-
-	err = svc.WaitUntilObjectNotExists(&s3.HeadObjectInput{
-		Bucket: &bucketName,
-		Key:    &filename,
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	err := addTableItem(sess, "some_lock_id", "some_lock_value", tableNameReturned)
+	assert.Equal(t, nil, err)
 }
