@@ -46,7 +46,7 @@ data "aws_iam_policy_document" "user_trust_relationship" {
       "sts:AssumeRole",
     ]
     principals {
-      type = "AWS"
+      type        = "AWS"
       # NOTE: that here there's no dependency on aws_iam_user.base_user[0] resource
       # this is intentional. since sometimes already existing users might need to use this role
       # this way you can still use -var `base_user_name=already_existing_user`
@@ -117,7 +117,7 @@ resource "aws_iam_policy" "dynamodb_access" {
         "dynamodb:PutItem",
         "dynamodb:DeleteItem"
       ],
-      "Resource": "arn:aws:dynamodb:*:*:table/${aws_dynamodb_table.terraform_lock.id}"
+      "Resource": "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/${aws_dynamodb_table.terraform_lock.id}"
     }
   ]
 }
