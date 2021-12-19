@@ -280,12 +280,15 @@ func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
 
 	id := "some_lock_id"
 	value := "some_lock_value"
+	// can the assumed role write to the dynamodb table?
 	err := addLockTableItem(sess, id, value, tableNameReturned)
 	assert.Equal(t, nil, err)
 
+	// can the assumed role update data in the dynamodb table?
 	err = updateLockTableItem(sess, id, value+"_new", tableNameReturned)
 	assert.Equal(t, nil, err)
 
+	// can the assumed role delete data from the dynamodb table?
 	err = deleteLockTableItem(sess, id, tableNameReturned)
 	assert.Equal(t, nil, err)
 }
