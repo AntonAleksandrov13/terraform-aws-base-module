@@ -131,7 +131,7 @@ func uploadFileToS3Bucket(session *session.Session, filename string, bucketName 
 	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
-
+			fmt.Println("Could not close file properly in defer statement")
 		}
 	}(file)
 	uploader := s3manager.NewUploader(session)
@@ -141,7 +141,6 @@ func uploadFileToS3Bucket(session *session.Session, filename string, bucketName 
 		Body:   file,
 	})
 	if err != nil {
-		// Print the error and exit.
 		return err
 	}
 	fmt.Printf("Successfully uploaded %q to %q\n", filename, bucketName)
