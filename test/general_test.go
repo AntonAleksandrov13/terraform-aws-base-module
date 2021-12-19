@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+	"time"
 )
 
 type Item struct {
@@ -139,31 +140,6 @@ func deleteLockTableItem(sess *session.Session, lockID string, tableName string)
 	return nil
 }
 
-func updateLockTableItem(sess *session.Session, lockID string, lockValue string, tableName string) error {
-	svc := dynamodb.New(sess)
-	input := &dynamodb.UpdateItemInput{
-		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-			":v": {
-				S: &lockValue,
-			},
-		},
-		Key: map[string]*dynamodb.AttributeValue{
-			"LockID": {
-				S: &lockID,
-			},
-		},
-		TableName:        &tableName,
-		UpdateExpression: aws.String("set LockValue = :v"),
-	}
-
-	_, err := svc.UpdateItem(input)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func TestOnlyRoleCreation(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	callerAccount, err := getAWSAccountNumber(sess)
@@ -272,7 +248,8 @@ func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
 
 	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
 	tableNameReturned := terraform.Output(t, terraformOptions, "lock_table_name")
-
+	// dirty trick to bypass dynamodb reachability issue
+	time.Sleep(5 * time.Second)
 	// run role assume and create a new session
 	sess = session.Must(session.NewSession(&aws.Config{
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
@@ -282,10 +259,6 @@ func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
 	value := "some_lock_value"
 	// can the assumed role write to the dynamodb table?
 	err := addLockTableItem(sess, id, value, tableNameReturned)
-	require.NoError(t, err)
-
-	// can the assumed role update data in the dynamodb table?
-	err = updateLockTableItem(sess, id, value+"_new", tableNameReturned)
 	require.NoError(t, err)
 
 	// can the assumed role delete data from the dynamodb table?
