@@ -95,7 +95,7 @@ func TestExistingUserCanAssumeRole(t *testing.T) {
 
 }
 
-func TestExistingUserReadWriteS3Bucker(t *testing.T) {
+func TestExistingUserReadWriteS3Bucket(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../examples/existing_user_can_assume_role",
@@ -109,7 +109,7 @@ func TestExistingUserReadWriteS3Bucker(t *testing.T) {
 
 	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
 
-	// run another role assume operation and create a new session
+	// run role assume and create a new session
 	sess = session.Must(session.NewSession(&aws.Config{
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
 	}))
