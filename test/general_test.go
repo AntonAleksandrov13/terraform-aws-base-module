@@ -143,9 +143,8 @@ func deleteLockTableItem(sess *session.Session, lockID string, tableName string)
 func TestOnlyRoleCreation(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	callerAccount, err := getAWSAccountNumber(sess)
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
+
 	//Construct the terraform options with default retryable errors to handle the most common
 	//retryable errors in terraform testing.
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
@@ -170,9 +169,7 @@ func TestOnlyRoleCreation(t *testing.T) {
 func TestExistingUserCanAssumeRole(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	callerAccount, err := getAWSAccountNumber(sess)
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../examples/existing_user_can_assume_role",
@@ -193,9 +190,8 @@ func TestExistingUserCanAssumeRole(t *testing.T) {
 
 	// run role assume using current user credentials
 	assumeRole, err := currentUserAssumeRole(sess, roleARNReturned)
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
+
 	userCanAssumeRole := false
 	// check if this property is present.
 	// it confirms that the role has been assumed correctly
