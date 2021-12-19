@@ -225,8 +225,9 @@ func TestExistingUserReadWriteS3Bucket(t *testing.T) {
 	// run role assume and create a new session
 	sess = session.Must(session.NewSession(&aws.Config{
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
-		Region:      aws.String(os.Getenv("AWS_REGION")),
 	}))
+	// dirty trick to bypass s3 reachability issue
+	time.Sleep(5 * time.Second)
 	err := uploadFileToS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
 	// can the assumed role write to S3?
 	require.NoError(t, err)
