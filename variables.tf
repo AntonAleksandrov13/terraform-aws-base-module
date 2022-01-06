@@ -1,9 +1,4 @@
 ### AWS IAM User section
-variable "allow_user_assume_on_role" {
-  type    = bool
-  default = false
-}
-
 variable "user_name" {
   type    = string
   default = "some_user_name"
@@ -19,12 +14,12 @@ variable "create_base_role" {
   default = false
 }
 
-variable "allow_user_assume" {
+variable "allow_user_assume_on_role" {
   type    = bool
   default = false
 }
 
-variable "base_role_name" {
+variable "role_name" {
   type    = string
   default = "terraform"
 }

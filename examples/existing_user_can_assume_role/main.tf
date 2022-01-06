@@ -27,7 +27,7 @@ locals {
 module "base_module" {
   source            = "../.."
   create_base_role  = true
-  allow_user_assume = true
+  allow_user_assume_on_role = true
   user_name    = local.current_user
 }
 

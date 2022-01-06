@@ -1,13 +1,13 @@
 locals {
   create_role_count       = var.create_base_role ? 1 : 0
-  allow_user_assume_count = var.allow_user_assume ? 1 : 0
+  allow_user_assume_count = var.allow_user_assume_on_role ? 1 : 0
 }
 
 ### AWS IAM Role section
 resource "aws_iam_role" "base_role" {
-  name               = var.base_role_name
+  name               = var.role_name
   count              = local.create_role_count
-  assume_role_policy = var.allow_user_assume ? data.aws_iam_policy_document.user_trust_relationship[0].json : data.aws_iam_policy_document.ec2_trust_relationship.json
+  assume_role_policy = var.allow_user_assume_on_role ? data.aws_iam_policy_document.user_trust_relationship[0].json : data.aws_iam_policy_document.ec2_trust_relationship.json
 }
 
 data "aws_iam_policy_document" "ec2_trust_relationship" {
