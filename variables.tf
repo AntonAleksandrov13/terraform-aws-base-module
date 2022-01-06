@@ -1,38 +1,26 @@
 ### AWS IAM User section
-variable "create_base_user" {
-  type = bool
+variable "allow_user_assume_on_role" {
+  type    = bool
   default = false
 }
 
-variable "base_user_name" {
+variable "user_name" {
   type    = string
-  default = "terraform"
+  default = "some_user_name"
 }
 
-variable "base_user_path" {
-  type    = string
-  default = "/"
-}
-
-variable "base_user_pgp_key" {
-  type     = string
-  default = "place_holder"
-}
-
-## not used right now
-## TODO: enable this for user and roles
-variable "base_user_additional_policies_arn" {
+variable "additional_policies_arn" {
   type    = list(string)
   default = []
 }
 ### AWS IAM Role section
 variable "create_base_role" {
-  type = bool
+  type    = bool
   default = false
 }
 
 variable "allow_user_assume" {
-  type = bool
+  type    = bool
   default = false
 }
 
@@ -43,7 +31,7 @@ variable "base_role_name" {
 
 ## AWS DynamoDB and S3 section
 variable "generate_bucket_name" {
-  type = bool
+  type    = bool
   default = true
 }
 variable "state_bucket_name_override" {
@@ -56,7 +44,7 @@ variable "s3_state_key_path" {
   default = "/*"
 }
 variable "generate_lock_table_name" {
-  type = bool
+  type    = bool
   default = true
 }
 

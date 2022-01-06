@@ -28,7 +28,7 @@ module "base_module" {
   source            = "../.."
   create_base_role  = true
   allow_user_assume = true
-  base_user_name    = local.current_user
+  user_name    = local.current_user
 }
 
 output "role_name" {
