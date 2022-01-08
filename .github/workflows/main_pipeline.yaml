@@ -8,11 +8,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - id: bump
-        uses: zwaldowski/match-label-action@v1
-        with:
-          allowed: major,minor,patch
-      - uses: zwaldowski/semver-release-action@v1
-        with:
-          bump: ${{ steps.bump.outputs.match }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: set up path
+        run: |
+          mkdir bin
+          echo "$(pwd)/bin" >> $GITHUB_PATH
+      - name: install semverbot
+        run: |
+          curl -o bin/sbot -L https://github.com/restechnica/semverbot/releases/download/v$SEMVERBOT_VERSION/sbot-linux-amd64
+          chmod +x bin/sbot
+      - name: update version
+        run: |
+          sbot update version
+          current_version="$(sbot get version)"
+          release_version="$(sbot predict version)"
+          echo "CURRENT_VERSION=${current_version}" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=${release_version}" >> $GITHUB_ENV
+          echo "current version: ${current_version}"
+          echo "next version: ${release_version}"
+      - name: release version
+        run: |
+          sbot release version
+          sbot push version
