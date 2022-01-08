@@ -11,17 +11,17 @@ terraform {
     aws = ">= 3.65.0"
   }
 }
-// usually you would do something like this:
-resource "aws_iam_user" "test_user" {
-  name = "tester"
-  path = "/"
-}
+# usually you would do something like this:
+#resource "aws_iam_user" "test_user" {
+#  name = "tester"
+#  path = "/"
+#}
 
-// for test we will get current AWS user, so in tests in can test role assume
+# for test we will get current AWS user, so in tests in can test role assume
 data "aws_caller_identity" "current" {}
 
 locals {
-  // get only user name from user arn
+  # get only user name from user arn
   current_user = regex("([^/]+$)", data.aws_caller_identity.current.arn)[0]
 }
 module "base_module" {
