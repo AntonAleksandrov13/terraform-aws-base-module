@@ -1,26 +1,13 @@
 locals {
-  create_user_count       = var.create_base_user ? 1 : 0
   create_role_count       = var.create_base_role ? 1 : 0
-  allow_user_assume_count = var.allow_user_assume ? 1 : 0
-}
-### AWS IAM User section
-resource "aws_iam_user" "base_user" {
-  count = local.create_user_count
-  name  = var.base_user_name
-  path  = var.base_user_path
-}
-
-resource "aws_iam_access_key" "base_user" {
-  count   = local.create_user_count
-  user    = aws_iam_user.base_user[count.index].name
-  pgp_key = var.base_user_pgp_key
+  allow_user_assume_count = var.allow_user_assume_on_role ? 1 : 0
 }
 
 ### AWS IAM Role section
 resource "aws_iam_role" "base_role" {
-  name               = var.base_role_name
+  name               = var.role_name
   count              = local.create_role_count
-  assume_role_policy = var.allow_user_assume ? data.aws_iam_policy_document.user_trust_relationship[0].json : data.aws_iam_policy_document.ec2_trust_relationship.json
+  assume_role_policy = var.allow_user_assume_on_role ? data.aws_iam_policy_document.user_trust_relationship[0].json : data.aws_iam_policy_document.ec2_trust_relationship.json
 }
 
 data "aws_iam_policy_document" "ec2_trust_relationship" {
@@ -47,11 +34,7 @@ data "aws_iam_policy_document" "user_trust_relationship" {
     ]
     principals {
       type        = "AWS"
-      # NOTE: that here there's no dependency on aws_iam_user.base_user[0] resource
-      # this is intentional. since sometimes already existing users might need to use this role
-      # this way you can still use -var `base_user_name=already_existing_user`
-      # this functionality comes with the price: if the user does not exists "Invalid principal in policy" error will be returned
-      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${var.base_user_name}"]
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${var.user_name}"]
     }
   }
 }
@@ -68,18 +51,11 @@ resource "aws_iam_role_policy_attachment" "role_dynamodb_access" {
   policy_arn = aws_iam_policy.dynamodb_access.arn
 }
 
-resource "aws_iam_user_policy_attachment" "user_s3_access" {
-  count      = local.create_user_count
-  user       = aws_iam_user.base_user[count.index].name
-  policy_arn = aws_iam_policy.s3_access.arn
+resource "aws_iam_role_policy_attachment" "role_additional_policies" {
+  count      = length(var.additional_policies_arn)
+  role       = aws_iam_role.base_role[0].name
+  policy_arn = var.additional_policies_arn[count.index]
 }
-
-resource "aws_iam_user_policy_attachment" "user_dynamodb_access" {
-  count      = local.create_user_count
-  user       = aws_iam_user.base_user[count.index].name
-  policy_arn = aws_iam_policy.dynamodb_access.arn
-}
-
 
 ### AWS IAM Policies section
 resource "aws_iam_policy" "s3_access" {

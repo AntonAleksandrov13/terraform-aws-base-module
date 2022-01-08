@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -35,6 +36,31 @@ func getAWSAccountNumber(session client.ConfigProvider) (string, error) {
 		}
 	}
 	return *result.Account, nil
+}
+
+func getRoleAttachedPolicies(session *session.Session, roleName string) ([]string, error) {
+	svc := iam.New(session)
+	policyNameList := []string{}
+	err := svc.ListAttachedRolePoliciesPages(
+		&iam.ListAttachedRolePoliciesInput{
+			RoleName: &roleName,
+		},
+		func(page *iam.ListAttachedRolePoliciesOutput, lastPage bool) bool {
+			if page != nil && len(page.AttachedPolicies) > 0 {
+				for _, policy := range page.AttachedPolicies {
+					policyNameList = append(policyNameList, *policy.PolicyName)
+				}
+				return true
+			}
+			return false
+		},
+	)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			return []string{}, aerr
+		}
+	}
+	return policyNameList, nil
 }
 
 func currentUserAssumeRole(session client.ConfigProvider, role string) (*sts.AssumeRoleOutput, error) {
@@ -140,7 +166,7 @@ func deleteLockTableItem(sess *session.Session, lockID string, tableName string)
 	return nil
 }
 
-func TestOnlyRoleCreation(t *testing.T) {
+func TestRoleCreation(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	callerAccount, err := getAWSAccountNumber(sess)
 	require.NoError(t, err)
@@ -166,13 +192,49 @@ func TestOnlyRoleCreation(t *testing.T) {
 	require.Equal(t, fmt.Sprintf("arn:aws:iam::%v:role/terraform", callerAccount), roleARNReturned)
 }
 
+func TestAdditionalPolicyAttachment(t *testing.T) {
+	sess := session.Must(session.NewSession())
+	callerAccount, err := getAWSAccountNumber(sess)
+	require.NoError(t, err)
+
+	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
+		TerraformDir: "../examples/role_with_additional_policies",
+	})
+
+	// Clean up resources with "terraform destroy" at the end of the test.
+	defer terraform.Destroy(t, terraformOptions)
+
+	// Run "terraform init" and "terraform apply". Fail the test if there are any errors.
+	terraform.InitAndApply(t, terraformOptions)
+
+	// is the role name output matching the expected name?
+	roleNameReturned := terraform.Output(t, terraformOptions, "role_name")
+	require.Equal(t, "terraform", roleNameReturned)
+	// is the role arn output matching the expected arn?
+	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
+	require.Equal(t, fmt.Sprintf("arn:aws:iam::%v:role/terraform", callerAccount), roleARNReturned)
+	// fetch all attached policies
+	policyNameList, err := getRoleAttachedPolicies(sess, roleNameReturned)
+	require.NoError(t, err)
+	// get name from terraform of the attached policy
+	additionalPolicyName := terraform.Output(t, terraformOptions, "test_policy_name")
+	// check if policy is attached
+	found := false
+	for i := range policyNameList {
+		if policyNameList[i] == additionalPolicyName {
+			found = true
+		}
+	}
+	require.Equal(t, found, true)
+}
+
 func TestExistingUserCanAssumeRole(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	callerAccount, err := getAWSAccountNumber(sess)
 	require.NoError(t, err)
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../examples/existing_user_can_assume_role",
+		TerraformDir: "../examples/existing_user_with_assume_role",
 	})
 
 	// Clean up resources with "terraform destroy" at the end of the test.
@@ -205,7 +267,7 @@ func TestExistingUserCanAssumeRole(t *testing.T) {
 func TestExistingUserReadWriteS3Bucket(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../examples/existing_user_can_assume_role",
+		TerraformDir: "../examples/existing_user_with_assume_role",
 	})
 
 	// Clean up resources with "terraform destroy" at the end of the test.
@@ -235,7 +297,7 @@ func TestExistingUserReadWriteS3Bucket(t *testing.T) {
 func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../examples/existing_user_can_assume_role",
+		TerraformDir: "../examples/existing_user_with_assume_role",
 	})
 
 	// Clean up resources with "terraform destroy" at the end of the test.
