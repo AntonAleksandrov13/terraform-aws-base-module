@@ -224,7 +224,7 @@ func TestAdditionalPolicyAttachment(t *testing.T) {
 				}
 			}
 		}
-		return "", fmt.Errorf("could not fetch attached list of attached policies")
+		return "", fmt.Errorf("could not fetch attached list of attached policies or policy is not attached")
 	})
 	require.Equal(t, additionalPolicyName, matchedPolicyName)
 }
