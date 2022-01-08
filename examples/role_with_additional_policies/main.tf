@@ -78,9 +78,9 @@ output "role_arn" {
 }
 
 output "test_policy_name" {
-  value = aws_iam_policy.test_policy.id
+  value = aws_iam_policy.test_policy.name
 }
 
 output "another_test_policy_name" {
-  value = aws_iam_policy.another_test_policy.id
+  value = aws_iam_policy.another_test_policy.name
 }
