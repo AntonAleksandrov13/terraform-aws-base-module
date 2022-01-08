@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/gruntwork-io/terratest/modules/retry"
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -213,19 +214,19 @@ func TestAdditionalPolicyAttachment(t *testing.T) {
 	// is the role arn output matching the expected arn?
 	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
 	require.Equal(t, fmt.Sprintf("arn:aws:iam::%v:role/terraform", callerAccount), roleARNReturned)
-	// fetch all attached policies
-	policyNameList, err := getRoleAttachedPolicies(sess, roleNameReturned)
-	require.NoError(t, err)
-	// get name from terraform of the attached policy
 	additionalPolicyName := terraform.Output(t, terraformOptions, "test_policy_name")
-	// check if policy is attached
-	found := false
-	for i := range policyNameList {
-		if policyNameList[i] == additionalPolicyName {
-			found = true
+	matchedPolicyName := retry.DoWithRetry(t, "retry", 2, 5*time.Second, func() (string, error) {
+		policyNameList, err := getRoleAttachedPolicies(sess, roleNameReturned)
+		if err == nil {
+			for i := range policyNameList {
+				if policyNameList[i] == additionalPolicyName {
+					return policyNameList[i], nil
+				}
+			}
 		}
-	}
-	require.Equal(t, found, true)
+		return "", fmt.Errorf("could not fetch attached list of attached policies")
+	})
+	require.Equal(t, additionalPolicyName, matchedPolicyName)
 }
 
 func TestExistingUserCanAssumeRole(t *testing.T) {
