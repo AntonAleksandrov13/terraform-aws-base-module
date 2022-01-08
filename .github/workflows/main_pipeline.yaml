@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - main
+env:
+  SEMVERBOT_VERSION: "1.0.0"
 jobs:
   semver:
     runs-on: ubuntu-latest
