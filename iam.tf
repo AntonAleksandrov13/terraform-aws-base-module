@@ -53,7 +53,7 @@ resource "aws_iam_role_policy_attachment" "role_dynamodb_access" {
 
 resource "aws_iam_role_policy_attachment" "role_additional_policies" {
   count      = length(var.additional_policies_arn)
-  role       = aws_iam_role.base_role[count.index].name
+  role       = aws_iam_role.base_role[0].name
   policy_arn = var.additional_policies_arn[count.index]
 }
 
