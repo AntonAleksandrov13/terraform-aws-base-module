@@ -13,9 +13,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/gruntwork-io/terratest/modules/retry"
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	"github.com/stretchr/testify/require"
+	"math/rand"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -24,6 +27,13 @@ type Item struct {
 	LockID    string
 	LockValue string
 }
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const (
+	letterIdxBits = 6                    // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+)
 
 func getAWSAccountNumber(session client.ConfigProvider) (string, error) {
 	svc := sts.New(session)
@@ -65,7 +75,7 @@ func getRoleAttachedPolicies(session *session.Session, roleName string) ([]strin
 
 func currentUserAssumeRole(session client.ConfigProvider, role string) (*sts.AssumeRoleOutput, error) {
 	svc := sts.New(session)
-	sessionName := "test_session"
+	sessionName := getRandomString(6) + "_session"
 	result, err := svc.AssumeRole(&sts.AssumeRoleInput{
 		RoleArn:         &role,
 		RoleSessionName: &sessionName,
@@ -166,6 +176,24 @@ func deleteLockTableItem(sess *session.Session, lockID string, tableName string)
 	return nil
 }
 
+func getRandomString(n int) string {
+	b := make([]byte, n)
+	// A rand.Int63() generates 63 random bits, enough for letterIdxMax letters!
+	for i, cache, remain := n-1, rand.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = rand.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			b[i] = letterBytes[idx]
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+
+	return string(b)
+}
+
 func TestRoleCreation(t *testing.T) {
 	sess := session.Must(session.NewSession())
 	callerAccount, err := getAWSAccountNumber(sess)
@@ -213,19 +241,26 @@ func TestAdditionalPolicyAttachment(t *testing.T) {
 	// is the role arn output matching the expected arn?
 	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
 	require.Equal(t, fmt.Sprintf("arn:aws:iam::%v:role/terraform", callerAccount), roleARNReturned)
-	// fetch all attached policies
-	policyNameList, err := getRoleAttachedPolicies(sess, roleNameReturned)
-	require.NoError(t, err)
-	// get name from terraform of the attached policy
 	additionalPolicyName := terraform.Output(t, terraformOptions, "test_policy_name")
-	// check if policy is attached
+	policyNameList := retry.DoWithRetryInterface(t, "retry", 2, 10*time.Second, func() (interface{}, error) {
+		policyNameList, err := getRoleAttachedPolicies(sess, roleNameReturned)
+		if err != nil {
+			return []string{}, fmt.Errorf("could not fetch attached list of attached policies or policy is not attached")
+		}
+		return policyNameList, nil
+	})
 	found := false
-	for i := range policyNameList {
-		if policyNameList[i] == additionalPolicyName {
-			found = true
+	switch reflect.TypeOf(policyNameList).Kind() {
+	case reflect.Slice:
+		s := reflect.ValueOf(policyNameList)
+		for i := 0; i < s.Len(); i++ {
+			if s.Index(i).String() == additionalPolicyName {
+				found = true
+				break
+			}
 		}
 	}
-	require.Equal(t, found, true)
+	require.Equal(t, true, found)
 }
 
 func TestExistingUserCanAssumeRole(t *testing.T) {
@@ -282,14 +317,24 @@ func TestExistingUserReadWriteS3Bucket(t *testing.T) {
 	sess = session.Must(session.NewSession(&aws.Config{
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
 	}))
-	// dirty trick to bypass s3 reachability issue
-	time.Sleep(10 * time.Second)
-	err := uploadFileToS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
 	// can the assumed role write to S3?
+	_, err := retry.DoWithRetryE(t, "retry", 2, 10*time.Second, func() (string, error) {
+		err := uploadFileToS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
+		if err != nil {
+			return "", fmt.Errorf("could not upload a file to s3 bucket")
+		}
+		return "", nil
+	})
 	require.NoError(t, err)
 
 	// can the assumed role delete from S3?
-	err = deleteFileFromS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
+	_, err = retry.DoWithRetryE(t, "retry", 2, 10*time.Second, func() (string, error) {
+		err = deleteFileFromS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
+		if err != nil {
+			return "", fmt.Errorf("could notdelete a file from s3 bucket")
+		}
+		return "", nil
+	})
 	require.NoError(t, err)
 
 }
@@ -315,13 +360,25 @@ func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
 	}))
 
-	id := "some_lock_id"
-	value := "some_lock_value"
+	id := getRandomString(6)
+	value := getRandomString(12)
 	// can the assumed role write to the dynamodb table?
-	err := addLockTableItem(sess, id, value, tableNameReturned)
+	_, err := retry.DoWithRetryE(t, "retry", 2, 10*time.Second, func() (string, error) {
+		err := addLockTableItem(sess, id, value, tableNameReturned)
+		if err != nil {
+			return "", fmt.Errorf("could not add item to Dynamodb")
+		}
+		return "", nil
+	})
 	require.NoError(t, err)
 
 	// can the assumed role delete data from the dynamodb table?
-	err = deleteLockTableItem(sess, id, tableNameReturned)
+	_, err = retry.DoWithRetryE(t, "retry", 2, 10*time.Second, func() (string, error) {
+		err = deleteLockTableItem(sess, id, tableNameReturned)
+		if err != nil {
+			return "", fmt.Errorf("could not add item to Dynamodb")
+		}
+		return "", nil
+	})
 	require.NoError(t, err)
 }
