@@ -17,6 +17,7 @@ import (
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	"github.com/stretchr/testify/require"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -215,18 +216,25 @@ func TestAdditionalPolicyAttachment(t *testing.T) {
 	roleARNReturned := terraform.Output(t, terraformOptions, "role_arn")
 	require.Equal(t, fmt.Sprintf("arn:aws:iam::%v:role/terraform", callerAccount), roleARNReturned)
 	additionalPolicyName := terraform.Output(t, terraformOptions, "test_policy_name")
-	matchedPolicyName := retry.DoWithRetry(t, "retry", 2, 5*time.Second, func() (string, error) {
+	policyNameList := retry.DoWithRetryInterface(t, "retry", 2, 10*time.Second, func() (interface{}, error) {
 		policyNameList, err := getRoleAttachedPolicies(sess, roleNameReturned)
-		if err == nil {
-			for i := range policyNameList {
-				if policyNameList[i] == additionalPolicyName {
-					return policyNameList[i], nil
-				}
+		if err != nil {
+			return []string{}, fmt.Errorf("could not fetch attached list of attached policies or policy is not attached")
+		}
+		return policyNameList, nil
+	})
+	found := false
+	switch reflect.TypeOf(policyNameList).Kind() {
+	case reflect.Slice:
+		s := reflect.ValueOf(policyNameList)
+		for i := 0; i < s.Len(); i++ {
+			if s.Index(i).String() == additionalPolicyName {
+				found = true
+				break
 			}
 		}
-		return "", fmt.Errorf("could not fetch attached list of attached policies or policy is not attached")
-	})
-	require.Equal(t, additionalPolicyName, matchedPolicyName)
+	}
+	require.Equal(t, true, found)
 }
 
 func TestExistingUserCanAssumeRole(t *testing.T) {
