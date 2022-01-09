@@ -16,6 +16,7 @@ import (
 	"github.com/gruntwork-io/terratest/modules/retry"
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	"github.com/stretchr/testify/require"
+	"math/rand"
 	"os"
 	"reflect"
 	"testing"
@@ -26,6 +27,13 @@ type Item struct {
 	LockID    string
 	LockValue string
 }
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const (
+	letterIdxBits = 6                    // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+)
 
 func getAWSAccountNumber(session client.ConfigProvider) (string, error) {
 	svc := sts.New(session)
@@ -67,7 +75,7 @@ func getRoleAttachedPolicies(session *session.Session, roleName string) ([]strin
 
 func currentUserAssumeRole(session client.ConfigProvider, role string) (*sts.AssumeRoleOutput, error) {
 	svc := sts.New(session)
-	sessionName := "test_session"
+	sessionName := getRandomString(6) + "_session"
 	result, err := svc.AssumeRole(&sts.AssumeRoleInput{
 		RoleArn:         &role,
 		RoleSessionName: &sessionName,
@@ -166,6 +174,24 @@ func deleteLockTableItem(sess *session.Session, lockID string, tableName string)
 	}
 
 	return nil
+}
+
+func getRandomString(n int) string {
+	b := make([]byte, n)
+	// A rand.Int63() generates 63 random bits, enough for letterIdxMax letters!
+	for i, cache, remain := n-1, rand.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = rand.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			b[i] = letterBytes[idx]
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+
+	return string(b)
 }
 
 func TestRoleCreation(t *testing.T) {
@@ -334,8 +360,8 @@ func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
 	}))
 
-	id := "some_lock_id"
-	value := "some_lock_value"
+	id := getRandomString(6)
+	value := getRandomString(12)
 	// can the assumed role write to the dynamodb table?
 	_, err := retry.DoWithRetryE(t, "retry", 2, 10*time.Second, func() (string, error) {
 		err := addLockTableItem(sess, id, value, tableNameReturned)
