@@ -291,14 +291,24 @@ func TestExistingUserReadWriteS3Bucket(t *testing.T) {
 	sess = session.Must(session.NewSession(&aws.Config{
 		Credentials: stscreds.NewCredentials(sess, roleARNReturned),
 	}))
-	// dirty trick to bypass s3 reachability issue
-	time.Sleep(10 * time.Second)
-	err := uploadFileToS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
 	// can the assumed role write to S3?
+	_, err := retry.DoWithRetryE(t, "retry", 2, 10*time.Second, func() (string, error) {
+		err := uploadFileToS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
+		if err != nil {
+			return "", fmt.Errorf("could not upload a file to s3 bucket")
+		}
+		return "", nil
+	})
 	require.NoError(t, err)
 
 	// can the assumed role delete from S3?
-	err = deleteFileFromS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
+	_, err = retry.DoWithRetryE(t, "retry", 2, 10*time.Second, func() (string, error) {
+		err = deleteFileFromS3Bucket(sess, "test.txt", terraform.Output(t, terraformOptions, "s3_bucket_name"))
+		if err != nil {
+			return "", fmt.Errorf("could notdelete a file from s3 bucket")
+		}
+		return "", nil
+	})
 	require.NoError(t, err)
 
 }
@@ -327,10 +337,22 @@ func TestExistingUserCRUDDynamoDBLockTable(t *testing.T) {
 	id := "some_lock_id"
 	value := "some_lock_value"
 	// can the assumed role write to the dynamodb table?
-	err := addLockTableItem(sess, id, value, tableNameReturned)
+	_, err := retry.DoWithRetryE(t, "retry", 2, 10*time.Second, func() (string, error) {
+		err := addLockTableItem(sess, id, value, tableNameReturned)
+		if err != nil {
+			return "", fmt.Errorf("could not add item to Dynamodb")
+		}
+		return "", nil
+	})
 	require.NoError(t, err)
 
 	// can the assumed role delete data from the dynamodb table?
-	err = deleteLockTableItem(sess, id, tableNameReturned)
+	_, err = retry.DoWithRetryE(t, "retry", 2, 10*time.Second, func() (string, error) {
+		err = deleteLockTableItem(sess, id, tableNameReturned)
+		if err != nil {
+			return "", fmt.Errorf("could not add item to Dynamodb")
+		}
+		return "", nil
+	})
 	require.NoError(t, err)
 }
