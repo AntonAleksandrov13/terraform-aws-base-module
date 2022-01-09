@@ -14,6 +14,7 @@ terraform {
 
 module "base_module" {
   source            = "../.."
+  # it will only create a base role, permissions, S3 and DynamoDB table
   create_base_role  = true
 }
 

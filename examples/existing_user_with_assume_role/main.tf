@@ -17,7 +17,7 @@ terraform {
 #  path = "/"
 #}
 
-# for test we will get current AWS user, so in tests in can test role assume
+# for tests we will get current AWS user, so in tests in can test role assume
 data "aws_caller_identity" "current" {}
 
 locals {
@@ -26,7 +26,12 @@ locals {
 }
 module "base_module" {
   source            = "../.."
+  # creates a role, permissions, S3 and DynamoDB
   create_base_role  = true
+  # you need to create a user separately either in AWS console or using Terraform resources
+  # using the following parameters, the user will be able to assume the newly created role
+  # if you don't provide these params, only role will be created
+  # please see examples folders for more
   allow_user_assume_on_role = true
   user_name    = local.current_user
 }
