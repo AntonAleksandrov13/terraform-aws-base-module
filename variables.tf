@@ -2,6 +2,7 @@
 variable "user_name" {
   type    = string
   default = "some_user_name"
+  description = ""
 }
 
 variable "additional_policies_arn" {
