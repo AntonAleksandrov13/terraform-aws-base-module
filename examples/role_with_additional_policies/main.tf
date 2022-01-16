@@ -63,9 +63,15 @@ resource "aws_iam_policy" "another_test_policy" {
 }
 module "base_module" {
   source                    = "../.."
+  # creates a role, permissions, S3 and DynamoDB
   create_base_role          = true
+  # you need to create a user separately either in AWS console or using Terraform resources
+  # using the following parameters, the user will be able to assume the newly created role
+  # if you don't provide these params, only role will be created
+  # please see examples folders for more
   allow_user_assume_on_role = true
   user_name                 = local.current_user
+  # attaches any other policy using the list of policy arns
   additional_policies_arn   = [aws_iam_policy.test_policy.arn, aws_iam_policy.another_test_policy.arn]
 }
 
